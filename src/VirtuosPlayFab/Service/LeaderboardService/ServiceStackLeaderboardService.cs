@@ -1,37 +1,32 @@
 ﻿using ServiceStack.Redis;
+using StackExchange.Redis;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System;
-namespace RedisLeaderboard
+using VirtuosPlayFab.Config;
+using VirtuosPlayFab.Service.RedisService;
+namespace VirtuosPlayFab.Service.LeaderboardService
 {
+    public class ServiceStackLeaderboardService
+    {
+        private IServiceStackRedisServiceProvider provider;
 
-    public class Leaderboard
-    {       
+        private readonly Appsettings appSettings;
+
         public string LeaderboardName { get; set; }
 
         //public static LeaderboardOptions defaultLeaderBoardOptions = new LeaderboardOptions();
         //public static RedisOptions defaultRedisOptions = new RedisOptions();
 
         public LeaderboardOptions LeaderBoardOptions { get; set; }
-        public RedisOptions RedisOptions { get; set; }
-        public IRedisClientsManager redisManagerPool;
 
-        public Leaderboard(string leaderboardName, LeaderboardOptions leaderboardOptions = null, RedisOptions redisOptions = null)
+        public ServiceStackLeaderboardService(string leaderboardName, LeaderboardOptions leaderboardOptions = null)
         {
             this.LeaderboardName = leaderboardName;
             this.LeaderBoardOptions = new LeaderboardOptions();
-            this.RedisOptions = new RedisOptions();
             if (leaderboardOptions != null)
             {
                 this.LeaderBoardOptions.Merge(leaderboardOptions);
-            }
-            if (redisOptions != null)
-            {
-                this.RedisOptions.Merge(redisOptions);
-            }
-            if (redisManagerPool == null)
-            {
-                redisManagerPool = new RedisManagerPool(this.RedisOptions.connectionString);
             }
         }
 
@@ -55,15 +50,15 @@ namespace RedisLeaderboard
         /// <param name="memberData">Optional member data</param>
         public void RankMemberIn(string leaderBoardName, string member, double score, string memberData = null)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 using (var trans = redis.CreateTransaction())
                 {
                     trans.QueueCommand(r => r.AddItemToSortedSet(leaderBoardName, member, score));
                     if (memberData != null)
                     {
-                        
-                        trans.QueueCommand(r =>r.SetEntryInHash(MemberDataKey(leaderBoardName), member, memberData));
+
+                        trans.QueueCommand(r => r.SetEntryInHash(MemberDataKey(leaderBoardName), member, memberData));
                     }
                     trans.Commit();
                 }
@@ -79,7 +74,7 @@ namespace RedisLeaderboard
         /// <param name="memberData">Optional member data</param>
         public void RankMemberAcross(List<string> leaderboards, string member, double score, string memberData = null)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 using (var trans = redis.CreateTransaction())
                 {
@@ -120,10 +115,11 @@ namespace RedisLeaderboard
         public void RankMemberIfIn(string leaderboardName, Predicate<RankCondition> rankCondition, string member, double score, string memberData = null)
         {
             var currentScore = 0.0;
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 currentScore = (double)redis.GetItemScoreInSortedSet(leaderboardName, member);
-                if (rankCondition(new RankCondition() {
+                if (rankCondition(new RankCondition()
+                {
                     Member = member,
                     CurrentScore = currentScore,
                     Score = score,
@@ -155,7 +151,7 @@ namespace RedisLeaderboard
         /// <returns>optional MemberData</returns>
         public string MemberDataForIn(string leaderboardName, string member)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 return redis.GetValueFromHash(MemberDataKey(leaderboardName), member);
             }
@@ -179,7 +175,7 @@ namespace RedisLeaderboard
         /// <param name="memberData">optional member data</param>
         public void UpdateMemberDataIn(string leaderboardName, string member, string memberData)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 redis.SetEntryInHash(MemberDataKey(leaderboardName), member, memberData);
             }
@@ -202,7 +198,7 @@ namespace RedisLeaderboard
         /// <param name="member">member name</param>
         public void RemoveMemberDataIn(string leaderboardName, string member)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 redis.RemoveEntryFromHash(MemberDataKey(leaderboardName), member);
             }
@@ -224,7 +220,7 @@ namespace RedisLeaderboard
         /// <param name="memberScoreCollection">a list of members and scores</param>
         public void RankMembersIn(string leaderBoardName, List<MemberScore> memberScoreCollection)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 using (var trans = redis.CreateTransaction())
                 {
@@ -254,7 +250,7 @@ namespace RedisLeaderboard
         /// <param name="member"></param>
         public void RemoveMemberFrom(string leaderboardName, string member)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 using (var trans = redis.CreateTransaction())
                 {
@@ -278,7 +274,7 @@ namespace RedisLeaderboard
         /// </summary>
         long TotalMembersIn(string leaderboardName)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 return redis.GetSortedSetCount(leaderboardName);
             }
@@ -314,7 +310,7 @@ namespace RedisLeaderboard
 
         public long TotalMembersInScoreRangeIn(string leaderboardName, double minScore, double maxScore)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 return redis.GetSortedSetCount(leaderboardName, minScore, maxScore);
             }
@@ -328,7 +324,7 @@ namespace RedisLeaderboard
 
         public void ChangeScoreForMemberIn(string leaderboardName, string member, double delta, string memberData = null)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 using (var trans = redis.CreateTransaction())
                 {
@@ -350,10 +346,10 @@ namespace RedisLeaderboard
 
         public long RankForIn(string leaderboardName, string member)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 if (this.LeaderBoardOptions.Reverse)
-                { 
+                {
                     return redis.GetItemIndexInSortedSet(leaderboardName, member) + 1;
                 }
                 else
@@ -370,9 +366,9 @@ namespace RedisLeaderboard
 
         public double ScoreForIn(string leaderboardName, string member)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
-            {                
-                return redis.GetItemScoreInSortedSet(leaderboardName, member);                
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
+            {
+                return redis.GetItemScoreInSortedSet(leaderboardName, member);
             }
         }
 
@@ -383,7 +379,7 @@ namespace RedisLeaderboard
 
         public bool MemberExistsIn(string leaderboardName, string member)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 return redis.SortedSetContainsItem(leaderboardName, member);
             }
@@ -396,25 +392,26 @@ namespace RedisLeaderboard
 
         public RankInfo ScoreAndRankFor(string leaderboardName, string member)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 var score = 0.0;
                 var index = 0L;
                 using (var trans = redis.CreateTransaction())
                 {
-                    trans.QueueCommand(r => r.GetItemScoreInSortedSet(leaderboardName, member), s=>score=s);
+                    trans.QueueCommand(r => r.GetItemScoreInSortedSet(leaderboardName, member), s => score = s);
                     if (this.LeaderBoardOptions.Reverse)
                     {
-                        trans.QueueCommand(r=>r.GetItemIndexInSortedSet(leaderboardName, member), i=> index = i);
+                        trans.QueueCommand(r => r.GetItemIndexInSortedSet(leaderboardName, member), i => index = i);
                     }
                     else
                     {
-                        trans.QueueCommand(r => r.GetItemIndexInSortedSetDesc(leaderboardName, member), i=> index = i);
+                        trans.QueueCommand(r => r.GetItemIndexInSortedSetDesc(leaderboardName, member), i => index = i);
 
                     }
                     trans.Commit();
                 }
-                return new RankInfo() {
+                return new RankInfo()
+                {
                     Member = member,
                     Position = index + 1,
                     Score = score
@@ -429,7 +426,7 @@ namespace RedisLeaderboard
 
         public void RemoveMembersInScoreRangeIn(string leaderboardName, double minScore, double maxScore)
         {
-            using(IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 redis.RemoveRangeFromSortedSetByScore(leaderboardName, minScore, maxScore);
             }
@@ -442,7 +439,7 @@ namespace RedisLeaderboard
 
         public long RemoveMembersOutsideRankIn(string leaderboardName, int rank)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 if (this.LeaderBoardOptions.Reverse)
                 {
@@ -466,7 +463,7 @@ namespace RedisLeaderboard
             {
                 return 0;
             }
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 long count = 0L;
                 var index = 0L;
@@ -498,7 +495,7 @@ namespace RedisLeaderboard
 
         public double ScoreForPercentileIn(string leaderboardName, float percentile)
         {
-            if(percentile < 0 || percentile > 100)
+            if (percentile < 0 || percentile > 100)
             {
                 return 0;
             }
@@ -511,11 +508,11 @@ namespace RedisLeaderboard
             var index = (totalMembers - 1) * (percentile / 100.0);
 
             List<double> scores;
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 scores = redis.GetRangeWithScoresFromSortedSet(leaderboardName, (int)Math.Floor(index), (int)Math.Ceiling(index)).Values.ToList();
             }
-            if(Double.Equals(index, Math.Ceiling(index)))
+            if (Double.Equals(index, Math.Ceiling(index)))
             {
                 return scores[0];
             }
@@ -532,8 +529,13 @@ namespace RedisLeaderboard
         /// <param name="member">Member name.</param>
         /// <param name="pageSize">Page size to be used in determining page location.</param>
         /// <returns>return the page where a member falls in the leaderboard or 0 if error</returns>
-        public int PageFor(string member, int pageSize = DefaultSettings.DEFAULT_PAGE_SIZE)
+        public int PageFor(string member, int pageSize = -1)
         {
+            if(pageSize < 0)
+            {
+                pageSize = appSettings.LeaderboardSettings.PageSize;
+            }
+
             return PageForIn(this.LeaderboardName, member, pageSize);
         }
 
@@ -544,16 +546,22 @@ namespace RedisLeaderboard
         /// <param name="member">Member name.</param>
         /// <param name="pageSize">pageSize</param>
         /// <returns></returns>
-        public int PageForIn(string leaderboardName, string member, int pageSize = DefaultSettings.DEFAULT_PAGE_SIZE)
+        public int PageForIn(string leaderboardName, string member, int pageSize = -1)
         {
             long rankForMember;
-            using (IRedisClient redis = redisManagerPool.GetClient())
+
+            if (pageSize < 0)
             {
-                rankForMember = this.LeaderBoardOptions.Reverse == true ? 
-                    redis.GetItemIndexInSortedSet(leaderboardName, member) : 
-                    redis.GetItemIndexInSortedSetDesc(leaderboardName, member); 
+                pageSize = appSettings.LeaderboardSettings.PageSize;
             }
-            if(rankForMember < 0)
+
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
+            {
+                rankForMember = this.LeaderBoardOptions.Reverse == true ?
+                    redis.GetItemIndexInSortedSet(leaderboardName, member) :
+                    redis.GetItemIndexInSortedSetDesc(leaderboardName, member);
+            }
+            if (rankForMember < 0)
             {
                 rankForMember = 0;
             }
@@ -570,7 +578,7 @@ namespace RedisLeaderboard
 
         public void ExpireLeaderboardFor(string leaderboardName, double seconds)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 using (var trans = redis.CreateTransaction())
                 {
@@ -588,7 +596,7 @@ namespace RedisLeaderboard
 
         public void ExpireLeaderboardFor(string leaderboardName, DateTime date)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 using (var trans = redis.CreateTransaction())
                 {
@@ -603,21 +611,21 @@ namespace RedisLeaderboard
         {
             var leaderboardRequestOptions = new LeaderboardRequestOptions();
             leaderboardRequestOptions.Merge(options);
-            if(currentPage < 1)
+            if (currentPage < 1)
             {
                 currentPage = 1;
             }
             int pageSize = ValidatePageSize(leaderboardRequestOptions.PageSize);
             var indexForRedis = currentPage - 1;
             var startingOffset = indexForRedis * pageSize;
-            if(startingOffset < 0)
+            if (startingOffset < 0)
             {
                 startingOffset = 0;
             }
 
             List<string> rawLeaderData;
             var endingOffset = (startingOffset + pageSize) - 1;
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 if (this.LeaderBoardOptions.Reverse)
                 {
@@ -628,7 +636,7 @@ namespace RedisLeaderboard
                     rawLeaderData = redis.GetRangeFromSortedSetDesc(leaderboardName, startingOffset, endingOffset);
                 }
             }
-            if(rawLeaderData != null)
+            if (rawLeaderData != null)
             {
                 return RankedInListIn(leaderboardName, rawLeaderData, leaderboardRequestOptions);
             }
@@ -642,8 +650,8 @@ namespace RedisLeaderboard
         {
             var leaderboardRequestOptions = new LeaderboardRequestOptions();
             leaderboardRequestOptions.Merge(options);
-            List<string> rawLeaderData = null; 
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            List<string> rawLeaderData = null;
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 if (this.LeaderBoardOptions.Reverse)
                 {
@@ -675,7 +683,7 @@ namespace RedisLeaderboard
             var leaderboardRequestOptions = new LeaderboardRequestOptions();
             leaderboardRequestOptions.Merge(options);
             List<string> rawLeaderData;
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 if (this.LeaderBoardOptions.Reverse)
                 {
@@ -712,10 +720,10 @@ namespace RedisLeaderboard
 
             endRanking -= 1;
             if (endRanking > TotalMembersIn(leaderboardName))
-                endRanking = (int) (TotalMembersIn(leaderboardName) - 1);
+                endRanking = (int)(TotalMembersIn(leaderboardName) - 1);
 
             List<string> rawLeaderData;
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 if (this.LeaderBoardOptions.Reverse)
                 {
@@ -755,7 +763,7 @@ namespace RedisLeaderboard
 
         public RankInfo MemberAtIn(string leaderbaordName, int position, LeaderboardRequestOptions options)
         {
-            if(position <= TotalMembersIn(leaderbaordName))
+            if (position <= TotalMembersIn(leaderbaordName))
             {
                 var leaderboardRequestOptions = new LeaderboardRequestOptions();
                 leaderboardRequestOptions.Merge(options);
@@ -784,7 +792,7 @@ namespace RedisLeaderboard
             leaderboardRequestOptions.Merge(options);
             long reverseRankForMe;
 
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 if (this.LeaderBoardOptions.Reverse)
                 {
@@ -831,16 +839,16 @@ namespace RedisLeaderboard
         //Fix me: implement the aggregate operation. options = {:aggregate => :sum})
         public void MergeLeaderboards(string destination, List<string> keys)
         {
-            using(IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
-                redis.StoreUnionFromSortedSets(destination,keys.ToArray(), new string[] { });
+                redis.StoreUnionFromSortedSets(destination, keys.ToArray(), new string[] { });
             }
         }
 
         //Fix me: implement the aggregate operation. options = {:aggregate => :sum})
         public void IntersetLeaderboard(string destination, List<string> keys)
         {
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 redis.StoreIntersectFromSortedSets(destination, keys.ToArray(), new string[] { });
             }
@@ -852,12 +860,12 @@ namespace RedisLeaderboard
             leaderboardRequestOptions.Merge(options);
             if (leaderboardRequestOptions.MembersOnly)
             {
-                return members.Select(e=> new RankInfo() {Member = e}).ToList();
+                return members.Select(e => new RankInfo() { Member = e }).ToList();
             }
             var ranksForMembers = new List<RankInfo>();
             List<long> ranks = new List<long>();
             List<double> scores = new List<double>();
-            using (IRedisClient redis = redisManagerPool.GetClient())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
             {
                 using (var trans = redis.CreateTransaction())
                 {
@@ -907,14 +915,15 @@ namespace RedisLeaderboard
                         else
                         {
                             return (int)(x.Position - y.Position);
-                        }});
+                        }
+                    });
                     break;
                 case "score":
                     ranksForMembers.Sort(delegate (RankInfo x, RankInfo y) {
                         if (y.Score == null) return -1;
                         if (x.Score == null) return 1;
                         else
-                        {                           
+                        {
                             return (int)(x.Score - y.Score);
                         }
                     });
@@ -925,14 +934,15 @@ namespace RedisLeaderboard
             return ranksForMembers;
         }
 
-            /// <summary>
-            /// delete the named leaderboard
-            /// </summary>
-            /// <param name="leaderBoardName"></param>
+        /// <summary>
+        /// delete the named leaderboard
+        /// </summary>
+        /// <param name="leaderBoardName"></param>
         public void DeleteLeaderboard(string leaderBoardName)
         {
-            using(IRedisClient redis = redisManagerPool.GetClient()){
-                using(var trans = redis.CreateTransaction())
+            using (IRedisClient redis = provider.RedisClientManager.GetClient())
+            {
+                using (var trans = redis.CreateTransaction())
                 {
                     trans.QueueCommand(r => r.Remove(leaderBoardName));
                     trans.QueueCommand(r => r.Remove(MemberDataKey(leaderBoardName)));
@@ -948,7 +958,7 @@ namespace RedisLeaderboard
         /// </summary>
         public void DisConnect()
         {
-            this.redisManagerPool.GetClient().Shutdown();
+            this.provider.RedisClientManager.GetClient().Shutdown();
         }
 
         /// <summary>
@@ -968,7 +978,7 @@ namespace RedisLeaderboard
         /// <returns>@return the page size. Returns the +DEFAULT_PAGE_SIZE+ if the page size is less than 1.</returns>
         int ValidatePageSize(int pageSize)
         {
-            if(pageSize < 1)
+            if (pageSize < 1)
             {
                 return this.LeaderBoardOptions.PageSize;
             }
@@ -976,6 +986,6 @@ namespace RedisLeaderboard
             {
                 return pageSize;
             }
-        }        
+        }
     }
 }

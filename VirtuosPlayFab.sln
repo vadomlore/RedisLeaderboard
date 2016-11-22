@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{A48CE9ED-93B3-46C5-9692-8CFA0029E75C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C412CD41-E19B-47CF-88E1-04F4BF36683F}"
+	ProjectSection(SolutionItems) = preProject
+		global.json = global.json
+	EndProjectSection
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "VirtuosPlayFab", "src\VirtuosPlayFab\VirtuosPlayFab.xproj", "{18F723A9-A0DA-45D8-B172-978D96EC7960}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{18F723A9-A0DA-45D8-B172-978D96EC7960}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{18F723A9-A0DA-45D8-B172-978D96EC7960}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{18F723A9-A0DA-45D8-B172-978D96EC7960}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{18F723A9-A0DA-45D8-B172-978D96EC7960}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{18F723A9-A0DA-45D8-B172-978D96EC7960} = {A48CE9ED-93B3-46C5-9692-8CFA0029E75C}
+	EndGlobalSection
+EndGlobal

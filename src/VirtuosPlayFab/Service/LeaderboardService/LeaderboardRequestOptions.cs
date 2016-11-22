@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
-namespace RedisLeaderboard
+namespace VirtuosPlayFab.Service.LeaderboardService
 {
     /// <summary>
     /// Default options when requesting data from a leaderboard.
@@ -14,17 +13,16 @@ namespace RedisLeaderboard
     ///sort_by+ :none: The default sort for a call to `ranked_in_list`.
     /// </summary>
     public class LeaderboardRequestOptions
-    {
+    {      
         public bool WithDataMember { get; set; } = false;
-        public int PageSize { get; set; } = DefaultSettings.DEFAULT_PAGE_SIZE;
+        public int PageSize { get; set; } = 10;
         public bool MembersOnly { get; set; } = false;
         public string SortBy { get; set; } = "rank";
         public bool IncludeMissing { get; set; } = true;
 
-
         public void Merge(LeaderboardRequestOptions options)
         {
-            if(options != null)
+            if (options != null)
             {
                 this.WithDataMember = options.WithDataMember;
                 this.PageSize = options.PageSize;

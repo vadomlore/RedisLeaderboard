@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace RedisLeaderboard
-{
+﻿namespace VirtuosPlayFab.Service.LeaderboardService
+{ 
     public class LeaderboardOptions
     {
-        public int PageSize { get; set; } = ConfigSettings.LeaderBoardPageSize;
+        public int PageSize { get; set; } = 10;
         public bool Reverse { get; set; } = false;
         public string MemberKey { get; set; }
         public string MemberDataNamespace { get; set; } = "member_data";
@@ -16,11 +10,11 @@ namespace RedisLeaderboard
 
         public LeaderboardOptions()
         {
-                       
+
         }
-        public LeaderboardOptions(int? pageSize, bool? reverse, bool? globalMemberData, string memberDataNamespace=null)
+        public LeaderboardOptions(int? pageSize, bool? reverse, bool? globalMemberData, string memberDataNamespace = null)
         {
-            if (pageSize.HasValue && pageSize.Value >=1)
+            if (pageSize.HasValue && pageSize.Value >= 1)
             {
                 this.PageSize = pageSize.Value;
             }
@@ -28,7 +22,7 @@ namespace RedisLeaderboard
             {
                 this.Reverse = reverse.Value;
             }
-            if(memberDataNamespace != null)
+            if (memberDataNamespace != null)
             {
                 this.MemberDataNamespace = memberDataNamespace;
             }
@@ -47,7 +41,7 @@ namespace RedisLeaderboard
             {
                 this.Reverse = leaderboardOptions.Reverse;
             }
-            if(!string.IsNullOrEmpty(leaderboardOptions.MemberDataNamespace) && leaderboardOptions.MemberDataNamespace != this.MemberDataNamespace)
+            if (!string.IsNullOrEmpty(leaderboardOptions.MemberDataNamespace) && leaderboardOptions.MemberDataNamespace != this.MemberDataNamespace)
             {
                 this.MemberDataNamespace = leaderboardOptions.MemberDataNamespace;
             }
@@ -55,7 +49,7 @@ namespace RedisLeaderboard
             {
                 this.GlobalMemberData = leaderboardOptions.GlobalMemberData;
             }
-            if(leaderboardOptions.MemberKey != null)
+            if (leaderboardOptions.MemberKey != null)
             {
                 this.MemberKey = leaderboardOptions.MemberKey;
             }
